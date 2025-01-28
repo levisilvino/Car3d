@@ -1,0 +1,24 @@
+{
+    "name": "seu-projeto-3d",
+    "version": "1.0.0",
+    "description": "Visualizador 3D com Three.js",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "keywords": [
+        "threejs",
+        "3d",
+        "webgl"
+    ],
+    "author": "Seu Nome",
+    "license": "MIT",
+    "dependencies": {
+        "three": "^0.161.0"
+    },
+    "devDependencies": {
+        "vite": "^5.4.14"
+    }
+}

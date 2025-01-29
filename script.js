@@ -88,43 +88,76 @@ gltfLoader.load(
 - Número de cenas: ${gltf.scenes.length}
 - Número de animações: ${gltf.animations ? gltf.animations.length : 'Nenhuma'}`);
 
-        const model = gltf.scene;
-        scene.add(model);
+const model = gltf.scene;
+scene.add(model);
 
-        // Debug: Log all animations details
-        if (gltf.animations && gltf.animations.length > 0) {
-            console.log('🔍 Detalhes das animações:');
-            gltf.animations.forEach((clip, index) => {
-                console.log(`
+// Encontrar o objeto do carro
+let carObject;
+model.traverse((object) => {
+    if (object.isMesh && object.geometry && object.geometry.attributes) {
+        const position = object.geometry.attributes.position;
+        if (position) {
+            // Verificar se este é o objeto mais distante no eixo Z (provavelmente o carro ao fundo)
+            let maxZ = -Infinity;
+            for (let i = 0; i < position.count; i++) {
+                const z = position.getZ(i);
+                if (z > maxZ) {
+                    maxZ = z;
+                }
+            }
+            console.log(`Objeto: ${object.name}, Posição Z máxima: ${maxZ}`);
+            
+            // Se este for o objeto mais ao fundo
+            if (maxZ > 5) { // Ajuste este valor conforme necessário
+                carObject = object;
+            }
+        }
+    }
+});
+
+// Debug: Log all animations details
+if (gltf.animations && gltf.animations.length > 0) {
+    console.log('🔍 Detalhes das animações:');
+    gltf.animations.forEach((clip, index) => {
+        console.log(`
 Animação ${index + 1}:
 - Nome: ${clip.name}
 - Duração: ${clip.duration} segundos
 - Tracks: ${clip.tracks.length}`);
-            });
+    });
 
-            mixer = new THREE.AnimationMixer(model);
-            
-            // Play all animations with more control
-            gltf.animations.forEach((clip) => {
-                const action = mixer.clipAction(clip);
-                action.setLoop(THREE.LoopRepeat, Infinity); // Ensure continuous looping
-                action.play();
-                console.log(`▶️ Iniciando animação: ${clip.name}`);
-            });
+    mixer = new THREE.AnimationMixer(model);
+    
+    // Play all animations with more control
+    gltf.animations.forEach((clip) => {
+        const action = mixer.clipAction(clip);
+        action.setLoop(THREE.LoopRepeat, Infinity); // Ensure continuous looping
+        action.play();
+        console.log(`▶️ Iniciando animação: ${clip.name}`);
+    });
 
-            console.log(`🎬 Loaded ${gltf.animations.length} animation(s)`);
-        } else {
-            console.warn('⚠️ Nenhuma animação encontrada no modelo!');
-        }
+    console.log(`🎬 Loaded ${gltf.animations.length} animation(s)`);
+} else {
+    console.warn('⚠️ Nenhuma animação encontrada no modelo!');
+}
 
-        // Ajuste de posição e escala
-        model.position.set(0, 0, 0);
-        model.scale.set(1, 1, 1);
+// Ajustar câmera para o objeto encontrado
+if (carObject) {
+    const box = new THREE.Box3().setFromObject(carObject);
+    const center = box.getCenter(new THREE.Vector3());
+    
+    console.log('Centro do objeto:', center);
 
-        // Posicionamento da câmera
-        camera.lookAt(model.position);
-        console.log('👀 Câmera ajustada para focar no modelo');
-
+    // Ajustar controles e câmera para o objeto
+    controls.target.copy(center);
+    camera.position.set(
+        center.x, + 5,   // Sem offset no X
+        center.y + 3, // Um pouco acima
+        center.z + 10 // Bem mais distante para ver o carro inteiro
+    );
+    camera.lookAt(center);
+    controls.update();
+}
         animate();
         console.log('🎥 Ciclo de animação iniciado');
     },

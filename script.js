@@ -52,53 +52,79 @@ console.log('🎮 Configurando controles orbitais');
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
-controls.screenSpacePanning = false;
+controls.screenSpacePanning = true;
 console.log('🔄 Controles orbitais configurados com amortecimento');
+
+// Animation mixer for GLTF model
+let mixer;
+const clock = new THREE.Clock();
+
+function animate() {
+    // Request next animation frame
+    requestAnimationFrame(animate);
+
+    // Update orbit controls
+    controls.update();
+
+    // Update animation mixer if exists
+    if (mixer) {
+        const delta = clock.getDelta();
+        mixer.update(delta);
+    }
+
+    // Render the scene
+    renderer.render(scene, camera);
+}
 
 // Carregamento do Modelo GLTF/GLB
 console.log('📦 Preparando carregamento do modelo 3D');
-const loader = new GLTFLoader();
-loader.load(
+const gltfLoader = new GLTFLoader();
+
+gltfLoader.load(
     'carrinhobrinquecoanimado.glb',
     (gltf) => {
         console.log('✅ Modelo 3D carregado com sucesso!');
         console.log(`🧩 Detalhes do modelo:
 - Número de cenas: ${gltf.scenes.length}
-- Número de animações: ${gltf.animations.length}`);
+- Número de animações: ${gltf.animations ? gltf.animations.length : 'Nenhuma'}`);
 
         const model = gltf.scene;
         scene.add(model);
 
+        // Debug: Log all animations details
+        if (gltf.animations && gltf.animations.length > 0) {
+            console.log('🔍 Detalhes das animações:');
+            gltf.animations.forEach((clip, index) => {
+                console.log(`
+Animação ${index + 1}:
+- Nome: ${clip.name}
+- Duração: ${clip.duration} segundos
+- Tracks: ${clip.tracks.length}`);
+            });
+
+            mixer = new THREE.AnimationMixer(model);
+            
+            // Play all animations with more control
+            gltf.animations.forEach((clip) => {
+                const action = mixer.clipAction(clip);
+                action.setLoop(THREE.LoopRepeat, Infinity); // Ensure continuous looping
+                action.play();
+                console.log(`▶️ Iniciando animação: ${clip.name}`);
+            });
+
+            console.log(`🎬 Loaded ${gltf.animations.length} animation(s)`);
+        } else {
+            console.warn('⚠️ Nenhuma animação encontrada no modelo!');
+        }
+
         // Ajuste de posição e escala
         model.position.set(0, 0, 0);
         model.scale.set(1, 1, 1);
-        console.log('📍 Modelo posicionado em (0, 0, 0) com escala (1, 1, 1)');
-
-        // Animação
-        const mixer = new THREE.AnimationMixer(model);
-        const clips = gltf.animations;
-        console.log(`🎬 Iniciando ${clips.length} animações`);
-        clips.forEach((clip, index) => {
-            const action = mixer.clipAction(clip);
-            action.play();
-            console.log(`▶️ Animação ${index + 1} iniciada: ${clip.name}`);
-        });
 
         // Posicionamento da câmera
         camera.lookAt(model.position);
         console.log('👀 Câmera ajustada para focar no modelo');
 
-        // Renderização com animação
-        const clock = new THREE.Clock();
-        function animate() {
-            requestAnimationFrame(animate);
-            
-            const delta = clock.getDelta();
-            mixer.update(delta);
-            
-            controls.update();
-            renderer.render(scene, camera);
-        }
         animate();
         console.log('🎥 Ciclo de animação iniciado');
     },

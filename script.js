@@ -81,7 +81,7 @@ console.log('📦 Preparando carregamento do modelo 3D');
 const gltfLoader = new GLTFLoader();
 
 gltfLoader.load(
-    'carrinhobrinquecoanimado.glb',
+    'carrinhomdf1.glb',
     (gltf) => {
         console.log('✅ Modelo 3D carregado com sucesso!');
         console.log(`🧩 Detalhes do modelo:

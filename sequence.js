@@ -20,9 +20,43 @@ class ImageSequence {
         try {
             this.loadingElement.style.display = 'block';
             
+            // Tenta diferentes formatos de caminho
+            const basePaths = [
+                './frames/',
+                '/frames/',
+                'frames/',
+                '../frames/'
+            ];
+            
+            let validPath = '';
+            
+            // Testa qual caminho funciona
+            for (const basePath of basePaths) {
+                try {
+                    const testImage = new Image();
+                    const testPath = `${basePath}animação1carrinhobrinqueco0000.png`;
+                    await new Promise((resolve, reject) => {
+                        testImage.onload = resolve;
+                        testImage.onerror = reject;
+                        testImage.src = testPath;
+                    });
+                    validPath = basePath;
+                    console.log(`✅ Caminho válido encontrado: ${validPath}`);
+                    break;
+                } catch (e) {
+                    console.log(`⚠️ Caminho não funcionou: ${basePath}`);
+                    continue;
+                }
+            }
+            
+            if (!validPath) {
+                throw new Error('Nenhum caminho válido encontrado para as imagens');
+            }
+
+            // Gera os caminhos das imagens usando o caminho válido
             for (let i = 0; i <= this.totalFrames; i++) {
                 const frameNumber = i.toString().padStart(4, '0');
-                const imagePath = `./frames/animação1carrinhobrinqueco${frameNumber}.png`;
+                const imagePath = `${validPath}animação1carrinhobrinqueco${frameNumber}.png`;
                 this.images.push(imagePath);
             }
 
@@ -32,17 +66,15 @@ class ImageSequence {
             this.startAnimation();
         } catch (error) {
             console.error('Erro na inicialização:', error);
-            this.loadingElement.textContent = 'Erro ao carregar imagens. Verifique se a pasta "frames" existe.';
-        } finally {
-            if (!this.preloadedImages.size) {
-                this.loadingElement.style.display = 'block';
-                this.loadingElement.innerHTML = 'Nenhuma imagem foi carregada. Verifique se:<br>' +
-                    '1. A pasta "frames" existe<br>' +
-                    '2. As imagens estão nomeadas corretamente<br>' +
-                    '3. As imagens são arquivos PNG válidos';
-            } else {
-                this.loadingElement.style.display = 'none';
-            }
+            this.loadingElement.innerHTML = `
+                Erro ao carregar imagens. Verifique se:<br>
+                1. A pasta "frames" existe no servidor<br>
+                2. As imagens estão nomeadas corretamente<br>
+                3. As permissões de acesso estão corretas<br>
+                <br>
+                Detalhes técnicos: ${error.message}
+            `;
+            this.loadingElement.style.display = 'block';
         }
     }
 

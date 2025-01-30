@@ -1,18 +1,38 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visualizador 3D - Carrinho</title>
-    <link rel="icon" type="image/x-icon" href="data:image/x-icon;,">
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            height: 100vh;
-            overflow: hidden;
-            background-color: #000;
-            position: relative;
+        body { margin: 0; padding: 0; overflow: hidden; }
+        .nav-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            z-index: 1000;
+        }
+
+        .nav-menu a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-menu a:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .nav-menu a.active {
+            background-color: rgba(255, 255, 255, 0.3);
         }
 
         #sequence-container {
@@ -31,10 +51,8 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
             color: white;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: rgba(0, 0, 0, 0.7);
             padding: 20px;
             border-radius: 10px;
             z-index: 1000;
@@ -54,13 +72,8 @@
             z-index: 100;
         }
 
-        .info-left {
-            left: 0;
-        }
-
-        .info-right {
-            right: 0;
-        }
+        .info-left { left: 0; }
+        .info-right { right: 0; }
 
         .info-box {
             background-color: rgba(0, 0, 0, 0.7);
@@ -90,6 +103,10 @@
     </style>
 </head>
 <body>
+    <nav class="nav-menu">
+        <a href="/">Página Inicial</a>
+        <a href="/sequence" class="active">Visualizador 3D</a>
+    </nav>
     <div id="sequence-container"></div>
     <div id="loading">Carregando...</div>
 
@@ -117,25 +134,23 @@
         </div>
     </div>
 
-    <script src="sequence.js"></script>
+    <script type="module" src="/sequence.js"></script>
     <script>
         // Exemplo de como mostrar/esconder as informações baseado no frame atual
         function showInfoAtFrame(frame) {
-            const allInfoBoxes = document.querySelectorAll('.info-box');
-            allInfoBoxes.forEach(box => box.classList.remove('visible'));
+            const infos = document.querySelectorAll('.info-box');
+            infos.forEach(info => info.classList.remove('visible'));
 
-            // Exemplo: mostrar diferentes informações em diferentes frames
-            if (frame >= 0 && frame < 100) {
+            if (frame >= 0 && frame < 90) {
                 document.getElementById('info-1').classList.add('visible');
-            } else if (frame >= 100 && frame < 200) {
+            } else if (frame >= 90 && frame < 180) {
                 document.getElementById('info-2').classList.add('visible');
-            } else if (frame >= 200 && frame < 300) {
+            } else if (frame >= 180 && frame < 270) {
                 document.getElementById('info-3').classList.add('visible');
-            } else if (frame >= 300 && frame < 400) {
+            } else if (frame >= 270) {
                 document.getElementById('info-4').classList.add('visible');
             }
         }
-
         // Você precisará chamar showInfoAtFrame no seu sequence.js
         // quando o frame mudar
     </script>

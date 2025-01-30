@@ -3,6 +3,7 @@ import path from 'path';
 
 export default defineConfig({
   root: 'src',
+  base: '/',  // Importante para o Vercel
   publicDir: '../public',
   build: {
     outDir: '../dist',
@@ -12,10 +13,12 @@ export default defineConfig({
         main: '/index.html',
         sequence: '/sequence.html'
       }
-    }
+    },
+    // Garante que os assets são copiados corretamente
+    assetsDir: 'assets',
+    copyPublicDir: true
   },
   server: {
-    port: 3000,
-    open: true
+    port: 3000
   }
 });

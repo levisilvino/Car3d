@@ -24,9 +24,6 @@ class CarModelViewer {
         this.model = null;
         this.selectedObject = null;
         this.availableObjects = [];
-        
-        // Adiciona mapa de bounding boxes
-        this.boundingBoxes = new Map();
     }
 
     setupLights() {
@@ -65,102 +62,6 @@ class CarModelViewer {
         document.body.appendChild(this.selectorContainer);
     }
 
-    setupCollisionDetection() {
-        console.log('🔍 Configurando Detecção de Colisão');
-        this.boundingBoxes.clear();
-
-        this.model.traverse((child) => {
-            if (child.isMesh) {
-                const box = new THREE.Box3().setFromObject(child);
-                const size = new THREE.Vector3();
-                box.getSize(size);
-
-                this.boundingBoxes.set(child.name, {
-                    box: box,
-                    size: size,
-                    originalPosition: child.position.clone()
-                });
-
-                console.log(`📦 Bounding Box para ${child.name}:
-- Tamanho: (${size.x.toFixed(2)}, ${size.y.toFixed(2)}, ${size.z.toFixed(2)})
-- Posição Original: (${child.position.x.toFixed(2)}, ${child.position.y.toFixed(2)}, ${child.position.z.toFixed(2)})
-                `);
-            }
-        });
-    }
-
-    checkCollision(objectName, newPosition) {
-        const currentObjectData = this.boundingBoxes.get(objectName);
-        if (!currentObjectData) return false;
-
-        const newBox = currentObjectData.box.clone();
-        const translation = newPosition.clone().sub(currentObjectData.originalPosition);
-        newBox.translate(translation);
-
-        for (const [name, data] of this.boundingBoxes.entries()) {
-            if (name !== objectName && newBox.intersectsBox(data.box)) {
-                console.warn(`🚫 Colisão detectada entre ${objectName} e ${name}`);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    moveObjectWithCollisionCheck(objectName, axis, value) {
-        const object = this.model.children.find(
-            child => child.name === objectName && child.isMesh
-        );
-
-        if (!object) return;
-
-        const movement = new THREE.Vector3();
-        movement[axis] = value;
-
-        const newPosition = object.position.clone().add(movement);
-
-        if (!this.checkCollision(objectName, newPosition)) {
-            object.position[axis] += value;
-            console.log(`✅ Movimento de ${objectName} no eixo ${axis}: ${value}`);
-        }
-    }
-
-    addObjectControls() {
-        if (!this.selectedObject) return;
-
-        // Limpa controles anteriores
-        this.selectorContainer.innerHTML = '';
-
-        ['x', 'y', 'z'].forEach(axis => {
-            const positionSlider = document.createElement('input');
-            positionSlider.type = 'range';
-            positionSlider.min = '-2';
-            positionSlider.max = '2';
-            positionSlider.step = '0.1';
-            positionSlider.value = this.selectedObject.position[axis];
-
-            positionSlider.addEventListener('input', (e) => {
-                if (this.selectedObject) {
-                    this.moveObjectWithCollisionCheck(
-                        this.selectedObject.name, 
-                        axis, 
-                        parseFloat(e.target.value) - this.selectedObject.position[axis]
-                    );
-                }
-            });
-
-            // Adiciona ao container de seleção
-            const label = document.createElement('label');
-            label.textContent = `${this.selectedObject.name} Position ${axis.toUpperCase()}:`;
-            label.style.color = 'white';
-            label.style.display = 'block';
-            label.style.marginTop = '10px';
-
-            this.selectorContainer.appendChild(label);
-            this.selectorContainer.appendChild(positionSlider);
-        });
-    }
-
     onWindowResize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
@@ -175,8 +76,8 @@ class CarModelViewer {
             this.debugModelStructure();
             this.setupModelShadows();
             this.centerAndScaleModel();
+            this.setupModelTextures();
             this.listAvailableObjects();
-            this.setupCollisionDetection();
             
             this.scene.add(this.model);
             return this.model;
@@ -188,29 +89,50 @@ class CarModelViewer {
     debugModelStructure() {
         console.log('🚗 Estrutura Detalhada do Modelo:');
         let objectCount = 0;
+        let texturedObjectCount = 0;
+
         this.model.traverse((child) => {
             if (child.isMesh) {
                 objectCount++;
+                
+                // Verificação de textura
+                const hasTexture = child.material && child.material.map;
+                const textureInfo = hasTexture 
+                    ? `✅ Texturizado (${child.material.map.source.data.src})` 
+                    : '❌ Sem Textura';
+
                 console.log(`
 📦 Objeto #${objectCount}:
 - Nome: ${child.name}
 - Tipo de Geometria: ${child.geometry.type}
 - Visível: ${child.visible}
 - Possui Material: ${!!child.material}
+- Estado da Textura: ${textureInfo}
 - Posição: (${child.position.x.toFixed(2)}, ${child.position.y.toFixed(2)}, ${child.position.z.toFixed(2)})
                 `);
+
+                if (hasTexture) {
+                    texturedObjectCount++;
+                }
             }
         });
-        console.log(`🔢 Total de Objetos Encontrados: ${objectCount}`);
+
+        console.log(`
+🔢 Resumo:
+- Total de Objetos: ${objectCount}
+- Objetos Texturizados: ${texturedObjectCount}
+- Porcentagem Texturizada: ${((texturedObjectCount / objectCount) * 100).toFixed(2)}%
+        `);
     }
 
     listAvailableObjects() {
         this.availableObjects = [];
+        this.selectorContainer.innerHTML = '';
+
         this.model.traverse((child) => {
             if (child.isMesh) {
                 this.availableObjects.push(child.name);
                 
-                // Cria botão para cada objeto
                 const button = document.createElement('button');
                 button.textContent = child.name;
                 button.style.margin = '5px';
@@ -249,6 +171,44 @@ class CarModelViewer {
         this.model.scale.set(scale, scale, scale);
     }
 
+    setupModelTextures() {
+        const textureLoader = new THREE.TextureLoader();
+
+        this.model.traverse((child) => {
+            if (child.isMesh) {
+                // Carrega textura para objetos específicos
+                switch(child.name) {
+                    case 'Roda':
+                        const rodaTexture = textureLoader.load('/texturas/roda_textura.jpg');
+                        child.material = new THREE.MeshStandardMaterial({ 
+                            map: rodaTexture 
+                        });
+                        break;
+                    
+                    case 'Carroceria':
+                        const carroceriaTexture = textureLoader.load('/texturas/carroceria_textura.png');
+                        child.material = new THREE.MeshStandardMaterial({ 
+                            map: carroceriaTexture,
+                            roughness: 0.5,
+                            metalness: 0.8
+                        });
+                        break;
+                    
+                    // Adicione mais casos conforme necessário
+                    default:
+                        if (!child.material.map) {
+                            const genericTexture = textureLoader.load('/texturas/default_texture.jpg');
+                            child.material = new THREE.MeshStandardMaterial({ 
+                                map: genericTexture,
+                                roughness: 0.5,
+                                metalness: 0.5
+                            });
+                        }
+                }
+            }
+        });
+    }
+
     handleModelLoadError(error) {
         console.error('❌ Erro ao carregar modelo:', error);
         const errorDiv = document.createElement('div');
@@ -282,25 +242,134 @@ class CarModelViewer {
             if (child.isMesh && child.name === name) {
                 this.selectedObject = child;
                 
-                // Destacar objeto
-                if (child.material) {
-                    child.material.opacity = 0.7;
-                    child.material.transparent = true;
-                }
-                
                 // Ajustar câmera para focar no objeto
                 const boundingBox = new THREE.Box3().setFromObject(child);
                 const center = boundingBox.getCenter(new THREE.Vector3());
                 
-                this.controls.target.copy(center);
-                this.camera.lookAt(center);
+                // Movimento suave da câmera
+                const duration = 1000; // 1 segundo
+                const startPosition = this.camera.position.clone();
+                const startLookAt = this.controls.target.clone();
+                
+                const animate = (startTime) => {
+                    const currentTime = performance.now();
+                    const elapsed = currentTime - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    
+                    // Interpolação suave
+                    const newPosition = new THREE.Vector3().lerpVectors(
+                        startPosition, 
+                        center.clone().add(new THREE.Vector3(0, 2, 5)), 
+                        progress
+                    );
+                    const newLookAt = new THREE.Vector3().lerpVectors(startLookAt, center, progress);
+                    
+                    this.camera.position.copy(newPosition);
+                    this.controls.target.copy(newLookAt);
+                    this.camera.lookAt(newLookAt);
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame((time) => animate(startTime));
+                    }
+                };
+                
+                // Inicia animação de movimento
+                animate(performance.now());
                 
                 console.log(`🎯 Objeto selecionado: ${name}`);
                 
-                // Adiciona controles de movimento
-                this.addObjectControls();
+                // Adiciona controles de interação
+                this.addObjectInteractionControls();
             }
         });
+    }
+
+    addObjectInteractionControls() {
+        if (!this.selectedObject) return;
+    
+        // Limpa controles anteriores
+        this.selectorContainer.innerHTML = '';
+    
+        // Adiciona informações básicas do objeto
+        const infoDiv = document.createElement('div');
+        infoDiv.innerHTML = `
+            <h3>Detalhes do Objeto</h3>
+            <p>Nome: ${this.selectedObject.name}</p>
+            <p>Posição: (${this.selectedObject.position.x.toFixed(2)}, 
+                        ${this.selectedObject.position.y.toFixed(2)}, 
+                        ${this.selectedObject.position.z.toFixed(2)})</p>
+        `;
+        infoDiv.style.color = 'white';
+        this.selectorContainer.appendChild(infoDiv);
+    
+        // Controles de visualização
+        const viewControls = document.createElement('div');
+        viewControls.innerHTML = '<h4>Controles de Visualização</h4>';
+        
+        // Botão de zoom
+        const zoomButton = document.createElement('button');
+        zoomButton.textContent = 'Zoom Objeto';
+        zoomButton.style.margin = '5px';
+        zoomButton.style.padding = '5px';
+        zoomButton.style.backgroundColor = 'rgba(255,255,255,0.1)';
+        zoomButton.style.color = 'white';
+        
+        zoomButton.addEventListener('click', () => {
+            const boundingBox = new THREE.Box3().setFromObject(this.selectedObject);
+            const center = boundingBox.getCenter(new THREE.Vector3());
+            
+            // Animação de zoom
+            const duration = 1000;
+            const startPosition = this.camera.position.clone();
+            const startLookAt = this.controls.target.clone();
+            
+            const zoomAnimate = (startTime) => {
+                const currentTime = performance.now();
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                const zoomPosition = center.clone().add(new THREE.Vector3(0, 1, 2));
+                const newPosition = new THREE.Vector3().lerpVectors(startPosition, zoomPosition, progress);
+                const newLookAt = new THREE.Vector3().lerpVectors(startLookAt, center, progress);
+                
+                this.camera.position.copy(newPosition);
+                this.controls.target.copy(newLookAt);
+                this.camera.lookAt(newLookAt);
+                
+                if (progress < 1) {
+                    requestAnimationFrame((time) => zoomAnimate(startTime));
+                }
+            };
+            
+            zoomAnimate(performance.now());
+        });
+        
+        viewControls.appendChild(zoomButton);
+    
+        // Botão para voltar à lista de objetos
+        const backButton = document.createElement('button');
+        backButton.textContent = 'Voltar para Lista de Objetos';
+        backButton.style.margin = '5px';
+        backButton.style.padding = '5px';
+        backButton.style.backgroundColor = 'rgba(0,255,0,0.1)';
+        backButton.style.color = 'white';
+        backButton.style.border = 'none';
+        backButton.style.borderRadius = '3px';
+        
+        backButton.addEventListener('click', () => {
+            // Reseta a câmera para a posição original
+            this.camera.position.set(0, 2, 5);
+            this.controls.target.set(0, 0, 0);
+            
+            // Volta a lista de objetos
+            this.listAvailableObjects();
+            
+            // Limpa o objeto selecionado
+            this.selectedObject = null;
+        });
+        
+        viewControls.appendChild(backButton);
+        this.selectorContainer.appendChild(viewControls);
     }
 
     animate() {
